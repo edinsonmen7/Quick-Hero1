@@ -339,20 +339,64 @@ function decChoose(i) {
   decision.pick = { t: c.t, res, lesson: c.lesson, fx }; decision.phase = 'result'; decision.fr = fr; beep(fx.s < 0 || fx.l < 0 ? 250 : 750, .15, 'triangle', .07);
 }
 function closeDecision() { decision = null; }
-function openRank(back) { rankBack = back; state = 'rank'; rankSel = -1; rankConfirm = false; }
-function deleteRank() {
-  const r = getRank(); if (rankSel < 0 || rankSel >= r.length) { rankConfirm = false; return; }
-  r.splice(rankSel, 1); try { localStorage.setItem('quickhero_rank', JSON.stringify(r)); } catch (e) {}
-  rankSel = -1; rankConfirm = false; beep(300, .15, 'triangle', .07);
+// ---------- Ranking compartido (Google Sheets) ----------
+const RANK_URL = 'https://script.google.com/macros/s/AKfycbwCiUOwGRGlEIMHQOCuuZRPMNL8qkAB1pIJmIOY-DPR4j-BlnRe67kR0jMieagtZsAqwg/exec';
+let deviceId;
+try { deviceId = localStorage.getItem('quickhero_dev'); if (!deviceId) { deviceId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now(); localStorage.setItem('quickhero_dev', deviceId); } } catch (e) { deviceId = 'tmp-' + Math.random().toString(36).slice(2); }
+let gRank = null, gLoading = false, gErr = '', rankTab = 'all', lastEid = '';
+function devLabel() {
+  const u = navigator.userAgent;
+  if (/Android/i.test(u)) return 'Android 📱'; if (/iPhone|iPad/i.test(u)) return 'iPhone 📱'; if (/Windows/i.test(u)) return 'Windows 💻';
+  if (/Mac/i.test(u)) return 'Mac 💻'; if (/Linux/i.test(u)) return 'Linux 💻'; return isMobile ? 'Celular 📱' : 'Computador 💻';
 }
-function getRank() { try { return JSON.parse(localStorage.getItem('quickhero_rank') || '[]'); } catch (e) { return []; } }
+function api(params) {
+  const q = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
+  return fetch(RANK_URL + (RANK_URL.includes('?') ? '&' : '?') + q).then(r => r.json());
+}
+let memRank = '[]';
+function getRank() {
+  let raw = null; try { raw = localStorage.getItem('quickhero_rank'); } catch (x) {}
+  try {
+    return JSON.parse(raw || memRank).map(e => ({ eid: e.eid || 'old-' + deviceId + '-' + e.s + '-' + e.n, did: e.did || deviceId, n: e.n, s: e.s, l: e.l, d: e.d, dev: e.dev || devLabel(), t: e.t || 0, sent: !!e.sent }));
+  } catch (x) { return []; }
+}
+function saveLocal(a) { memRank = JSON.stringify(a.slice().sort((x, y) => y.s - x.s).slice(0, 60)); try { localStorage.setItem('quickhero_rank', memRank); } catch (x) {} }
+function markSent(eid) { const r = getRank(), x = r.find(e => e.eid === eid); if (x) { x.sent = true; saveLocal(r); } }
 function addRank() {
-  const r = getRank(), e = { n: myName, s: Math.floor(score), l: bossCount + 1, d: delivered }; r.push(e); r.sort((a, b) => b.s - a.s);
-  const top = r.slice(0, 10); try { localStorage.setItem('quickhero_rank', JSON.stringify(top)); } catch (x) {} return top.indexOf(e) + 1;
+  const r = getRank(), e = { eid: deviceId + '-' + Date.now(), did: deviceId, n: myName, s: Math.floor(score), l: bossCount + 1, d: delivered, dev: devLabel(), t: Date.now(), sent: false };
+  r.push(e); saveLocal(r); return e;
+}
+function localPos(e) { const i = getRank().sort((a, b) => b.s - a.s).findIndex(x => x.eid === e.eid); return i >= 0 && i < 10 ? i + 1 : 0; }
+function submit(e) {
+  if (!RANK_URL) return Promise.resolve();
+  return api({ action: 'add', eid: e.eid, did: e.did, n: e.n, s: e.s, l: e.l, d: e.d, dev: e.dev }).then(r => { if (r && r.ok) markSent(e.eid); }).catch(() => {});
+}
+function loadRank() {
+  if (!RANK_URL) { gRank = null; return; }
+  gLoading = true; gErr = '';
+  Promise.all(getRank().filter(e => !e.sent).map(submit)).then(() => api({ action: 'list' })).then(r => {
+    if (!r || !r.ok) throw new Error('bad'); gRank = r.list || []; gLoading = false;
+    if (lastEid) { const i = gRank.findIndex(e => e.eid === lastEid); if (i >= 0) lastRankPos = i < 10 ? i + 1 : 0; }
+  }).catch(() => { gLoading = false; gErr = 'Sin conexión: se muestran solo los puntajes de este dispositivo.'; });
+}
+function rankList() {
+  let src = (RANK_URL && gRank && !gErr) ? gRank : getRank();
+  if (rankTab === 'mine') src = src.filter(e => e.did === deviceId);
+  return src.slice().sort((a, b) => b.s - a.s).slice(0, 10);
+}
+function openRank(back) { rankBack = back; state = 'rank'; rankSel = -1; rankConfirm = false; rankTab = 'all'; loadRank(); }
+function deleteRank() {
+  const r = rankList(), e = r[rankSel]; rankConfirm = false; rankSel = -1;
+  if (!e || e.did !== deviceId) return;
+  saveLocal(getRank().filter(x => x.eid !== e.eid));
+  if (gRank) gRank = gRank.filter(x => x.eid !== e.eid);
+  if (RANK_URL) api({ action: 'del', eid: e.eid, did: deviceId }).then(() => loadRank()).catch(() => {});
+  beep(300, .15, 'triangle', .07);
 }
 function endGame() {
   state = 'over'; if (saveRank && score > best) { best = score; try { localStorage.setItem('quickhero', best); } catch (e) {} }
-  lastRankPos = saveRank && score >= 10 ? addRank() : 0;
+  lastRankPos = 0; lastEid = '';
+  if (saveRank && score >= 10) { const e = addRank(); lastEid = e.eid; lastRankPos = localPos(e); submit(e).then(loadRank); }
 }
 function loseLife(cause) {
   if (hero.inv > 0) return;
@@ -937,32 +981,50 @@ function drawName() {
   if (nameErr) { ctx.fillStyle = '#ff6b6b'; ctx.font = 'bold 18px ' + FONT; ctx.fillText('Escribe tu nombre (mínimo 2 letras) para entrar al ranking.', W / 2, 415); }
   btn('Seguir a la historia ▶', W / 2 - 160, 440, 320, 52, nameNext, true);
 }
+function rankTabBtn(label, x, key) {
+  const on = rankTab === key;
+  ctx.fillStyle = on ? YEL : '#25253f'; rr(x, 40, 150, 34, 10);
+  ctx.fillStyle = on ? '#111' : '#fff'; ctx.font = 'bold 15px ' + FONT; ctx.textAlign = 'center'; ctx.fillText(label, x + 75, 62);
+  if (!rankConfirm) btns.push({ x, y: 40, w: 150, h: 34, fn: () => { rankTab = key; rankSel = -1; } });
+}
 function drawRank() {
-  drawCity('#0d0d1f', '#2a1f3d'); dim(.82); title('🏆 Ranking', 80, 44);
-  const r = getRank(); ctx.font = '16px ' + FONT; ctx.fillStyle = '#aaa';
-  ctx.textAlign = 'left'; ctx.fillText('#', 150, 125); ctx.fillText('MENSAJERO', 200, 125);
-  ctx.textAlign = 'right'; ctx.fillText('NIVEL', 590, 125); ctx.fillText('IMPULSOS', 700, 125); ctx.fillText('PUNTOS', 810, 125);
-  if (!r.length) { ctx.fillStyle = '#fff'; ctx.font = '21px ' + FONT; ctx.textAlign = 'center'; ctx.fillText('Aún no hay puntajes: ¡juega y sé el primero!', W / 2, 280); }
+  drawCity('#0d0d1f', '#2a1f3d'); dim(.82);
+  const r = rankList();
+  if (rankConfirm && !(r[rankSel] && r[rankSel].did === deviceId)) rankConfirm = false;
+  ctx.fillStyle = YEL; ctx.font = 'bold 36px ' + FONT; ctx.textAlign = 'left'; ctx.fillText('🏆 Ranking', 150, 70);
+  rankTabBtn('🌎 Todos', 520, 'all'); rankTabBtn('👤 Mis intentos', 680, 'mine');
+  ctx.font = '14px ' + FONT; ctx.textAlign = 'left';
+  if (!RANK_URL) { ctx.fillStyle = '#aaa'; ctx.fillText('Ranking de este dispositivo.', 150, 102); }
+  else if (gLoading) { ctx.fillStyle = '#4be3ff'; ctx.fillText('Cargando ranking compartido…', 150, 102); }
+  else if (gErr) { ctx.fillStyle = '#ff9a9a'; ctx.fillText(gErr, 150, 102); }
+  else { ctx.fillStyle = '#7ee0a0'; ctx.fillText('🌎 Ranking compartido: todos los dispositivos', 150, 102); }
+  ctx.font = '15px ' + FONT; ctx.fillStyle = '#aaa';
+  ctx.textAlign = 'left'; ctx.fillText('#', 150, 134); ctx.fillText('MENSAJERO', 200, 134); ctx.fillText('DISPOSITIVO', 410, 134);
+  ctx.textAlign = 'right'; ctx.fillText('NIVEL', 620, 134); ctx.fillText('IMPULSOS', 715, 134); ctx.fillText('PUNTOS', 815, 134);
+  if (!r.length && !gLoading) { ctx.fillStyle = '#fff'; ctx.font = '21px ' + FONT; ctx.textAlign = 'center'; ctx.fillText(rankTab === 'mine' ? 'Aún no tienes intentos guardados en este dispositivo.' : 'Aún no hay puntajes: ¡juega y sé el primero!', W / 2, 280); }
   r.forEach((e, i) => {
-    const y = 160 + i * 31, sel = i === rankSel;
-    if (sel) { ctx.fillStyle = 'rgba(253,212,2,.18)'; rr(138, y - 22, 690, 30, 8); ctx.strokeStyle = YEL; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(138, y - 22, 690, 30, 8); ctx.stroke(); }
-    else if (!rankConfirm && mx >= 138 && mx <= 828 && my >= y - 22 && my <= y + 8) { ctx.fillStyle = 'rgba(255,255,255,.07)'; rr(138, y - 22, 690, 30, 8); }
-    ctx.fillStyle = i === 0 ? YEL : '#fff'; ctx.font = (i === 0 ? 'bold ' : '') + '20px ' + FONT;
-    ctx.textAlign = 'left'; ctx.fillText((i + 1) + '', 150, y); ctx.fillText(e.n, 200, y);
-    ctx.textAlign = 'right'; ctx.fillText(e.l + '', 590, y); ctx.fillText(e.d + '', 700, y); ctx.fillText(e.s + '', 810, y);
-    if (!rankConfirm) btns.push({ x: 138, y: y - 22, w: 690, h: 30, fn: () => { rankSel = sel ? -1 : i; } });
+    const y = 168 + i * 29, sel = i === rankSel, mine = e.did === deviceId;
+    if (sel) { ctx.fillStyle = 'rgba(253,212,2,.18)'; rr(138, y - 21, 690, 28, 8); ctx.strokeStyle = YEL; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(138, y - 21, 690, 28, 8); ctx.stroke(); }
+    else if (!rankConfirm && mx >= 138 && mx <= 828 && my >= y - 21 && my <= y + 7) { ctx.fillStyle = 'rgba(255,255,255,.07)'; rr(138, y - 21, 690, 28, 8); }
+    ctx.fillStyle = i === 0 ? YEL : '#fff'; ctx.font = (i === 0 ? 'bold ' : '') + '19px ' + FONT;
+    ctx.textAlign = 'left'; ctx.fillText((i + 1) + '', 150, y); ctx.fillText(e.n + (mine ? ' (tú)' : ''), 200, y);
+    ctx.fillStyle = '#9aa'; ctx.font = '14px ' + FONT; ctx.fillText(e.dev || '', 410, y);
+    ctx.fillStyle = i === 0 ? YEL : '#fff'; ctx.font = (i === 0 ? 'bold ' : '') + '19px ' + FONT;
+    ctx.textAlign = 'right'; ctx.fillText(e.l + '', 620, y); ctx.fillText(e.d + '', 715, y); ctx.fillText(e.s + '', 815, y);
+    if (!rankConfirm) btns.push({ x: 138, y: y - 21, w: 690, h: 28, fn: () => { rankSel = sel ? -1 : i; } });
   });
-  ctx.fillStyle = '#888'; ctx.font = '14px ' + FONT; ctx.textAlign = 'left';
-  ctx.fillText('Toca un puntaje para seleccionarlo y bórralo para volver a intentarlo. Se guarda en este dispositivo.', 150, 530);
+  ctx.fillStyle = '#888'; ctx.font = '13px ' + FONT; ctx.textAlign = 'left';
+  ctx.fillText('Toca uno de tus puntajes para seleccionarlo y borrarlo. Solo puedes borrar los de este dispositivo.', 150, 530);
+  const sel = r[rankSel];
   if (!rankConfirm) {
-    if (rankSel >= 0 && r[rankSel]) btn('🗑 Borrar seleccionado', 150, 470, 290, 44, () => { rankConfirm = true; });
-    else { ctx.fillStyle = '#25253f'; rr(150, 470, 290, 44, 12); ctx.fillStyle = '#777'; ctx.font = '17px ' + FONT; ctx.textAlign = 'left'; ctx.fillText('🗑 Elige un puntaje para borrarlo', 168, 497); }
+    if (sel && sel.did === deviceId) btn('🗑 Borrar seleccionado', 150, 470, 290, 44, () => { rankConfirm = true; });
+    else { ctx.fillStyle = '#25253f'; rr(150, 470, 290, 44, 12); ctx.fillStyle = '#888'; ctx.font = '15px ' + FONT; ctx.textAlign = 'left'; ctx.fillText(sel ? 'Solo puedes borrar tus intentos' : '🗑 Elige un puntaje tuyo para borrarlo', 168, 497); }
     btn('◀ Volver', 760, 470, 150, 44, () => { state = rankBack; }, true);
   } else {
-    const e = r[rankSel]; dim(.6);
+    dim(.6);
     ctx.fillStyle = '#1d1d30'; rr(210, 190, 540, 170, 16); ctx.strokeStyle = YEL; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(210, 190, 540, 170, 16); ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.font = 'bold 22px ' + FONT; ctx.textAlign = 'center'; ctx.fillText('¿Borrar este puntaje?', W / 2, 232);
-    ctx.fillStyle = YEL; ctx.font = '19px ' + FONT; ctx.fillText(e ? e.n + ' · ' + e.s + ' puntos · nivel ' + e.l : '', W / 2, 266);
+    ctx.fillStyle = YEL; ctx.font = '19px ' + FONT; ctx.fillText(sel.n + ' · ' + sel.s + ' puntos · nivel ' + sel.l, W / 2, 266);
     btn('Sí, borrar', 240, 295, 220, 46, deleteRank, true);
     btn('Cancelar', 500, 295, 220, 46, () => { rankConfirm = false; });
   }
