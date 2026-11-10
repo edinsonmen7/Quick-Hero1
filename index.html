@@ -232,7 +232,7 @@ function decChoose(i) {
   if (fx.s) score = Math.max(0, score + fx.s);
   if (fx.c) cargo = Math.max(0, cargo + fx.c);
   if (fx.sh) hero.shield = Math.min(2, hero.shield + fx.sh);
-  if (fx.l) { lives = Math.min(6, lives + fx.l); if (lives <= 0) { decision = null; lastCause = 'clock'; endGame(); return; } }
+  if (fx.l) { lives = Math.min(8, lives + fx.l); if (lives <= 0) { decision = null; lastCause = 'clock'; endGame(); return; } }
   decision.pick = { t: c.t, res, lesson: c.lesson, fx }; decision.phase = 'result'; decision.fr = fr; beep(fx.s < 0 || fx.l < 0 ? 250 : 750, .15, 'triangle', .07);
 }
 function closeDecision() { decision = null; }
@@ -531,19 +531,19 @@ function drawRank() {
 // ---------- Niveles, jefes, narrativa y tutorial ----------
 const LEVELS = [
   { world: 'Centro de la ciudad', momento: 'Amanecer', th: [0, 1], bld: 'tower', haz: 'drone', hazName: 'drones de Don Retraso',
-    boss: 'retraso', bossName: 'DON RETRASO', bossHp: 4,
+    boss: 'retraso', bossName: 'DON RETRASO', bossHp: 2,
     intro: 'Las calles despiertan y Don Retraso ya soltó sus relojes. Haz 2 entregas para obligarlo a dar la cara.' },
   { world: 'Autopista en hora pico', momento: 'Atardecer', th: [1, 2], bld: 'mixed', haz: 'car', hazName: 'carros y conos',
-    boss: 'trancon', bossName: 'TRANCÓN REX', bossHp: 6,
+    boss: 'trancon', bossName: 'TRANCÓN REX', bossHp: 3,
     intro: 'La ciudad se detuvo. Un monstruo hecho de carros bloquea la vía principal. Haz 2 entregas para enfrentarlo.' },
   { world: 'Barrio de mapas rotos', momento: 'Anochecer', th: [2, 3], bld: 'house', haz: 'pin', hazName: 'pines de destino falso',
-    boss: 'brujula', bossName: 'LA BRÚJULA LOCA', bossHp: 7,
+    boss: 'brujula', bossName: 'LA BRÚJULA LOCA', bossHp: 3,
     intro: 'Los mapas se volvieron locos y las direcciones cambian de lugar. Confirma cada destino. Haz 2 entregas para llegar a su fuente.' },
   { world: 'Ciudad en silencio', momento: 'Noche', th: [3, 3], bld: 'tower', haz: 'call', hazName: 'llamadas perdidas',
-    boss: 'fantasma', bossName: 'EL CLIENTE FANTASMA', bossHp: 8,
+    boss: 'fantasma', bossName: 'EL CLIENTE FANTASMA', bossHp: 4,
     intro: 'Es de noche y nadie contesta el teléfono. Entre la niebla suena un timbre sin dueño. Haz 2 entregas para encontrarlo.' },
   { world: 'Central del Gran Apagón', momento: 'Sistema caído', th: [4, 4], bld: 'server', haz: 'bolt', hazName: 'cortocircuitos',
-    boss: 'apagon', bossName: 'EL GRAN APAGÓN', bossHp: 12,
+    boss: 'apagon', bossName: 'EL GRAN APAGÓN', bossHp: 6,
     intro: 'Las luces de la ciudad se apagan una a una. Esta es la central del Gran Apagón. Haz 2 entregas y prepárate para el combate final.' }
 ];
 
@@ -601,60 +601,60 @@ const TSTEPS = [
   { id: 'move', title: 'Cómo moverte', caps: ['↑', '↓'], codes: ['arrowup', 'arrowdown'], art: 'move',
     say: () => isMobile ? '¡Vamos a volar! Arrastra el dedo hacia arriba o abajo para mover al héroe. Toca una flecha para probar.' : '¡Vamos a volar! Mueve al héroe con las flechas ↑ ↓, o con el mouse. Las teclas A, S y D las usaremos después, para tus poderes. Pulsa una flecha para probar.',
     hint: () => 'Atrapa la caja 📦 (' + Math.min(cargo, 1) + '/1)', goal: () => cargo >= 1,
-    onLive() { cargo = 0; spawnKind('box', 200); },
-    spawn(lt) { if (lt % 110 === 100 && !items.some(i => i.k === 'box')) spawnKind('box'); } },
+    onLive() { cargo = 0; spawnKind('box', 230, undefined, 640); },
+    spawn(lt) { if (lt % 90 === 80 && !items.some(i => i.k === 'box')) spawnKind('box', undefined, undefined, 700); } },
   { id: 'boxes', title: 'Cajas y entregas', caps: ['ESPACIO'], codes: SPACE, art: 'boxes',
-    say: () => '¡Muy bien! Cada caja es un paquete que alguien está esperando. Las cajas cercanas se acercan solas, como un imán. Junta 3 cajas para seguir.',
-    hint: () => 'Junta cajas 📦 (' + Math.min(cargo, 3) + '/3)', goal: () => cargo >= 3,
+    say: () => '¡Muy bien! Cada caja es un paquete que alguien está esperando. Las cajas cercanas se acercan solas, como un imán. Junta 2 cajas para seguir.',
+    hint: () => 'Junta cajas 📦 (' + Math.min(cargo, 2) + '/2)', goal: () => cargo >= 2,
     onLive() { cargo = 0; },
-    spawn(lt) { if (lt % 55 === 15) spawnKind('box'); } },
+    spawn(lt) { if (lt === 3 || lt % 40 === 25) spawnKind('box', undefined, undefined, 700); } },
   { id: 'clock', title: '¡Peligro! Los relojes', caps: ['ESPACIO'], codes: SPACE, art: 'clock',
-    say: () => '¡Ojo con esto! Los relojes rojos son RETRASOS: nunca los toques. Tranquilo, antes de que entren, una flecha roja parpadea en el borde de la pantalla. Esquiva 3 relojes.',
-    hint: () => 'Esquiva los relojes ⏰ (' + Math.min(tut.dodged, 3) + '/3)', goal: () => tut.dodged >= 3,
+    say: () => '¡Ojo con esto! Los relojes rojos son RETRASOS: nunca los toques. Tranquilo, antes de que entren, una flecha roja parpadea en el borde de la pantalla. Esquiva 2 relojes.',
+    hint: () => 'Esquiva los relojes ⏰ (' + Math.min(tut.dodged, 2) + '/2)', goal: () => tut.dodged >= 2,
     onLive() { tut.dodged = 0; },
-    spawn(lt) { if (lt % 95 === 20) spawnKind('clock'); } },
+    spawn(lt) { if (lt === 4 || lt === 40) spawnKind('clock', undefined, undefined, W + 80); } },
   { id: 'energy', title: 'Tu energía', caps: ['ESPACIO'], codes: SPACE, art: 'energy',
     say: () => 'Tu energía ⚡ baja con el tiempo, y más rápido con calor. Si llega a cero, pierdes una vida. Pero tranquilo: recoge los rayos azules y te recargas.',
     hint: () => 'Recoge un rayo azul ⚡', goal: () => tut.fuel,
-    onLive() { energy = 35; tut.fuel = false; spawnKind('fuel', 300); },
+    onLive() { energy = 35; tut.fuel = false; spawnKind('fuel', 300, undefined, 620); },
     spawn(lt) { if (lt % 90 === 80 && !items.some(i => i.k === 'fuel')) spawnKind('fuel'); } },
   { id: 'z', title: 'Poder: Escudo', caps: ['A'], codes: ['a'], art: 'pz',
     say: () => (isMobile ? '¡Primer poder! Toca el botón 🛡️ para activar el ESCUDO.' : '¡Primer poder! Pulsa la tecla A para activar tu ESCUDO.') + ' Absorbe un golpe y cuesta 30 ⚡ de energía.',
     onKey() { energy = 100; cd.z = 0; usePower('z'); },
-    hint: () => 'Escudo activo 🛡️ mira cómo frena al reloj', goal: () => tut.lt >= 210,
-    spawn(lt) { if (lt === 20) spawnKind('clock', hero.y); } },
+    hint: () => 'Escudo activo 🛡️ mira cómo frena al reloj', goal: () => tut.lt >= 130,
+    spawn(lt) { if (lt === 4) spawnKind('clock', hero.y, undefined, 560); } },
   { id: 'x', title: 'Poder: Impulso', caps: ['S'], codes: ['s'], art: 'px',
     say: () => (isMobile ? '¡Segundo poder! Toca el botón 🚀 para el IMPULSO.' : '¡Segundo poder! Pulsa la tecla S para el IMPULSO.') + ' Vas más rápido y nada te hace daño por un momento. Cuesta 40 ⚡.',
     onKey() { energy = 100; cd.x = 0; usePower('x'); },
-    hint: () => 'Impulso activo 🚀 atraviesa los relojes', goal: () => tut.lt >= 260,
-    spawn(lt) { if (lt === 8 || lt === 50 || lt === 92) spawnKind('clock', hero.y + (lt === 50 ? 40 : -10)); } },
+    hint: () => 'Impulso activo 🚀 atraviesa los relojes', goal: () => tut.lt >= 190,
+    spawn(lt) { if (lt === 4 || lt === 34 || lt === 64) spawnKind('clock', hero.y + (lt === 34 ? 40 : -10), undefined, 600); } },
   { id: 'c', title: 'Poder: Imán', caps: ['D'], codes: ['d'], art: 'pc',
     say: () => (isMobile ? '¡Último poder! Toca el botón 🧲 para el IMÁN.' : '¡Último poder! Pulsa la tecla D para el IMÁN.') + ' Atrae las cajas desde lejos. Cuesta 20 ⚡.',
     onKey() { energy = 100; cd.c = 0; usePower('c'); },
-    hint: () => 'Imán activo 🧲 mira cómo llegan las cajas', goal: () => tut.lt >= 250,
-    spawn(lt) { if (lt === 15) spawnKind('box', 110); if (lt === 55) spawnKind('box', 450); if (lt === 95) spawnKind('box', 280); } },
+    hint: () => 'Imán activo 🧲 mira cómo llegan las cajas', goal: () => tut.lt >= 130,
+    spawn(lt) { if (lt === 4) spawnKind('box', 110, undefined, 640); if (lt === 30) spawnKind('box', 450, undefined, 640); if (lt === 56) spawnKind('box', 280, undefined, 640); } },
   { id: 'throw', title: 'Lanzar cajas', caps: ['ESPACIO'], codes: SPACE, art: 'throw',
-    say: () => '¡Los jefes llegan pronto! Lánzales cajas con ' + (isMobile ? 'un toque en la pantalla' : 'la tecla ESPACIO (o clic)') + '. Cada lanzamiento gasta 1 caja. Practica golpeando 3 veces al jefe de práctica.',
-    onKey() { cargo = 5; boss = { type: 'retraso', x: W + 120, y: H / 2, hp: 3, max: 3, t: 0, hit: 0, tutor: true, alpha: 1 }; fire(); },
-    hint: () => 'Golpea al jefe de práctica 🎯 (' + (boss ? boss.max - boss.hp : 3) + '/3)', goal: () => tut.bossDown,
+    say: () => '¡Los jefes llegan pronto! Lánzales cajas con ' + (isMobile ? 'un toque en la pantalla' : 'la tecla ESPACIO (o clic)') + '. Cada lanzamiento gasta 1 caja. Practica golpeando 2 veces al jefe de práctica.',
+    onKey() { cargo = 5; boss = { type: 'retraso', x: W + 120, y: H / 2, hp: 2, max: 2, t: 0, hit: 0, tutor: true, alpha: 1 }; fire(); },
+    hint: () => 'Golpea al jefe de práctica 🎯 (' + (boss ? boss.max - boss.hp : 2) + '/2)', goal: () => tut.bossDown,
     spawn(lt) { if (cargo < 2 && lt % 60 === 10) spawnKind('box'); } },
   { id: 'deliver', title: 'Entregar al cliente', caps: ['ESPACIO'], codes: SPACE, art: 'deliver',
-    say: () => '¡Casi listo! Con 5 cajas aparece el CLIENTE: un círculo amarillo. Vuela hasta él para entregar y ganar puntos. Cada entrega impulsa a un negocio.',
-    onLive() { cargo = 5; tut.zone = true; delivered = 0; },
+    say: () => '¡Casi listo! Con 3 cajas aparece el CLIENTE: un círculo amarillo. Vuela hasta él para entregar y ganar puntos. Cada entrega impulsa a un negocio.',
+    onLive() { cargo = 3; tut.zone = true; delivered = 0; },
     hint: () => 'Vuela al círculo del CLIENTE 🎯', goal: () => delivered >= 1 },
   { id: 'sun', title: 'Clima: sol de mediodía', caps: ['ESPACIO'], codes: SPACE, art: 'sun',
     say: () => 'Hablemos del clima. El sol de mediodía agota a cualquier mensajero, y tu energía baja más rápido. Te lo explico una sola vez, así que míralo con calma, en cámara lenta.',
     onLive() { tut.weather = 'sun'; tut.slow = true; energy = 75; },
-    hint: () => '☀️ Mira cómo baja tu energía más rápido', goal: () => tut.lt >= 330,
+    hint: () => '☀️ Mira cómo baja tu energía más rápido', goal: () => tut.lt >= 200,
     spawn(lt) { if (lt % 90 === 30) spawnKind('box'); } },
   { id: 'rain', title: 'Clima: lluvia fuerte', caps: ['ESPACIO'], codes: SPACE, art: 'rain',
     say: () => 'La lluvia fuerte hace que se vea menos y que el cliente se mueva de lugar. Apunta bien al círculo amarillo. Míralo en cámara lenta.',
-    onLive() { tut.weather = 'rain'; tut.slow = true; tut.zone = true; cargo = 5; delivered = 0; },
-    hint: () => '🌧️ Mira cómo se mueve el cliente', goal: () => tut.lt >= 330 || delivered >= 1 && tut.lt >= 120 },
+    onLive() { tut.weather = 'rain'; tut.slow = true; tut.zone = true; cargo = 3; delivered = 0; },
+    hint: () => '🌧️ Mira cómo se mueve el cliente', goal: () => tut.lt >= 200 || delivered >= 1 && tut.lt >= 90 },
   { id: 'traffic', title: 'Clima: hora pico', caps: ['ESPACIO'], codes: SPACE, art: 'traffic',
     say: () => 'En hora pico llegan más obstáculos juntos. Respira, mantén la calma y esquívalos uno a uno. Míralo en cámara lenta.',
     onLive() { tut.weather = 'traffic'; tut.slow = true; },
-    hint: () => '🚦 Mira cuántos obstáculos llegan juntos', goal: () => tut.lt >= 330 },
+    hint: () => '🚦 Mira cuántos obstáculos llegan juntos', goal: () => tut.lt >= 200 },
   { id: 'end', title: '¡Listo, Capitán!', caps: ['ESPACIO'], codes: SPACE, art: 'finish',
     say: () => '¡Lo lograste, Capitán! Ahora sí estás listo. Serán 5 niveles y 5 villanos distintos. Recuerda nuestro propósito: impulsamos tu negocio, entrega a entrega. ¡Yo estaré contigo! Vamos.' }
 ];
@@ -929,7 +929,8 @@ function drawAudio() {
 
 // ---------- Flujo: niveles, tutorial, final ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-function startLives() { return perks.prisa ? 3 : 4; }
+let lastHit = 0;
+function startLives() { return perks.prisa ? 5 : 6; }
 function baseReset() {
   score = 0; cargo = 0; delivered = 0; speed = 4; t = 0; energy = 100;
   items = []; parts = []; texts = []; deliveryZone = null;
@@ -945,7 +946,7 @@ function startLevel(n) {
   level = n; bossCount = n - 1; levelT0 = t; levelDeliv = 0;
   boss = null; bossSpawnT = 0; items = []; shots = []; beams = []; deliveryZone = null; cargo = 0; cargoF = 0; urgentT = 0; coldT = 0;
   paused = false; resting = false; restPend = 0; decision = null; nextDec = t + 1800; bossIntro = null; winPend = 0;
-  energy = 100; hero.inv = 90; hero.y = H / 2; hero.vy = 0; target = H / 2;
+  energy = 100; hero.inv = 120; hero.y = H / 2; hero.vy = 0; target = H / 2; if (lives < 5) lives = 5; hero.shield = Math.max(hero.shield, 1); lastHit = t;
   rebuildWorld(); levelSnap = { score: Math.floor(score), delivered };
   levelIntro = { n, fr }; sfx('level'); speak(LEVELS[n - 1].intro);
 }
@@ -993,7 +994,7 @@ function tutLive() {
   const s = TSTEPS[tut.i];
   tut.lt = fr - tut.t0;
   if (s.spawn) s.spawn(tut.lt);
-  if (tut.weather === 'traffic' && tut.lt % 45 === 20) spawnKind(Math.random() < .5 ? 'clock' : 'drone');
+  if (tut.weather === 'traffic' && tut.lt % 30 === 12) spawnKind(Math.random() < .5 ? 'clock' : 'drone');
   if (tut.weather === 'sun') energy = Math.max(12, energy - .1 * ts);
   if (!tut.okAt && s.goal && s.goal()) { tut.okAt = fr; pop(hero.x + 40, hero.y - 40, '¡Bien hecho!', '#7ee0a0'); beep(880, .12, 'triangle', .08); }
   if (tut.okAt && fr - tut.okAt > 45) tutNext();
@@ -1004,9 +1005,9 @@ function advance() {
   if (audioOpen) return;
   if (paused) { paused = false; return; }
   if (resting) { if (restT < 1100) closeRest(); return; }
-  if (decision) { if (decision.phase === 'result' && fr - decision.fr > 40) closeDecision(); return; }
-  if (levelIntro) { if (fr - levelIntro.fr > 40) levelIntro = null; return; }
-  if (bossIntro) { if (fr - bossIntro.fr > 40) bossIntro = null; return; }
+  if (decision) { if (decision.phase === 'result' && fr - decision.fr > 18) closeDecision(); return; }
+  if (levelIntro) { if (fr - levelIntro.fr > 18) levelIntro = null; return; }
+  if (bossIntro) { if (fr - bossIntro.fr > 18) bossIntro = null; return; }
   if (state === 'tut') return;
   if (state === 'menu') { state = 'name'; nameErr = false; setTimeout(() => nm.focus(), 60); }
   else if (state === 'story') { if (++panel >= STORY.length) state = 'tree'; }
@@ -1040,17 +1041,17 @@ addEventListener('keydown', e => {
 });
 
 // ---------- Utilidades de juego ----------
-function spawnKind(k, y, sub) {
+function spawnKind(k, y, sub, x) {
   y = y ?? 70 + Math.random() * (H - 130);
-  if (k === 'box') items.push({ k, x: W + 30, y, r: 20, sub });
-  else if (k === 'clock') items.push({ k, x: W + 300, y, r: 21, ph: Math.random() * 6 });
-  else if (k === 'drone') items.push({ k, x: W + 300, y, r: 21, vy: (Math.random() - .5) * 2.5 });
-  else if (k === 'fuel') items.push({ k, x: W + 30, y, r: 15 });
+  if (k === 'box') items.push({ k, x: x ?? W + 30, y, r: 20, sub });
+  else if (k === 'clock') items.push({ k, x: x ?? W + 300, y, r: 21, ph: Math.random() * 6 });
+  else if (k === 'drone') items.push({ k, x: x ?? W + 300, y, r: 21, vy: (Math.random() - .5) * 2.5 });
+  else if (k === 'fuel') items.push({ k, x: x ?? W + 30, y, r: 15 });
 }
 function spawn() {
   const r = Math.random(), tr = curWeather() === 'traffic' ? .12 : 0;
-  if (r < .46 - tr) spawnKind('box', undefined, pickSub());
-  else if (r < .62 + Math.min(.06, t / 12000)) spawnKind('clock');
+  if (r < .6 - tr) spawnKind('box', undefined, pickSub());
+  else if (r < .68) spawnKind('clock');
   else if (r < .76) spawnKind('drone');
   else if (r < .90) spawnKind('fuel');
   else spawnKind('box');
@@ -1058,7 +1059,7 @@ function spawn() {
 function fire() {
   if ((state !== 'play' && state !== 'tut') || !boss || shotCool > 0 || frozen()) return;
   if (cargo <= 0) { pop(hero.x, hero.y - 30, '¡Recoge cajas para lanzar!', '#ff6b6b'); shotCool = 20; beep(150, .1); return; }
-  cargo--; shots.push({ x: hero.x + 30, y: hero.y }); shotCool = 12; sfx('fire');
+  cargo--; shots.push({ x: hero.x + 30, y: hero.y }); shotCool = 8; sfx('fire');
 }
 function usePower(k) {
   if ((state !== 'play' && state !== 'tut') || frozen()) return;
@@ -1075,7 +1076,7 @@ function loseLife(cause) {
   if (hero.inv > 0) return;
   if (hero.shield > 0) { hero.shield--; hero.inv = 60; burst(hero.x, hero.y, '#4be3ff', 20); pop(hero.x, hero.y - 30, '¡Escudo!', '#4be3ff'); sfx('shield'); return; }
   if (state === 'tut') { hero.inv = 60; pop(hero.x, hero.y - 30, '¡Ouch! En el juego pierdes 1 vida', '#ff6b6b'); beep(150, .2, 'sawtooth'); return; }
-  lives--; hero.inv = 150; shake = 12; cargo = Math.max(0, cargo - 1); lastCause = cause;
+  lives--; lastHit = t; hero.inv = 240; shake = 12; cargo = Math.max(0, cargo - 1); lastCause = cause;
   if (cargoF > 0) { cargo = Math.max(0, cargo - cargoF); cargoF = 0; pop(hero.x, hero.y - 55, '🍷 ¡Frágil roto!', '#bfe9ff'); }
   burst(hero.x, hero.y, '#ff4d4d', 24);
   pop(hero.x, hero.y - 30, HAZMSG[cause] || '¡AUCH!', '#ff6b6b');
@@ -1098,7 +1099,7 @@ function bossUpdate() {
   const tx = b.type === 'trancon' ? 760 : b.type === 'apagon' ? 790 : 770;
   b.x += (tx - b.x) * .07;
   if (b.tutor) { b.y = H / 2 + Math.sin(b.t / 45) * 60; return; }
-  const rate = Math.max(55, 104 - level * 6), ready = b.t > 60;
+  const rate = Math.max(80, 150 - level * 6), ready = b.t > 90;
   if (b.type === 'retraso') {
     b.y = clamp(H / 2 + Math.sin(b.t / 45) * 130, 150, H - 120);
     if (ready && b.t % rate === 0) items.push({ k: 'clock', x: b.x - 70, y: b.y, r: 21, ph: 0, extra: 2.2, aim: true });
@@ -1121,17 +1122,17 @@ function bossUpdate() {
   } else if (b.type === 'apagon') {
     const ratio = b.hp / b.max; b.phase = ratio > .66 ? 1 : ratio > .33 ? 2 : 3; b.dark = b.phase >= 2;
     b.y = clamp(H / 2 + Math.sin(b.t / 55) * 100, 160, H - 130);
-    if (ready && b.t % (b.phase === 3 ? 75 : 115) === 0) beams.push({ y: 90 + Math.random() * (H - 150), t: 0, warn: 62, on: 24 });
-    if (ready && b.phase >= 2 && b.t % 125 === 0) items.push({ k: 'proj', style: 'bolt', x: b.x - 105, y: b.y, r: 18, extra: 3, vy: clamp((hero.y - b.y) / 70, -3, 3) });
-    if (ready && b.phase === 3 && b.t % 160 === 0) items.push({ k: 'clock', x: b.x - 105, y: b.y, r: 21, ph: 0, extra: 2.6, aim: true });
+    if (ready && b.t % (b.phase === 3 ? 110 : 160) === 0) beams.push({ y: 90 + Math.random() * (H - 150), t: 0, warn: 90, on: 22 });
+    if (ready && b.phase >= 2 && b.t % 190 === 0) items.push({ k: 'proj', style: 'bolt', x: b.x - 105, y: b.y, r: 18, extra: 3, vy: clamp((hero.y - b.y) / 70, -3, 3) });
+    if (ready && b.phase === 3 && b.t % 250 === 0) items.push({ k: 'clock', x: b.x - 105, y: b.y, r: 21, ph: 0, extra: 2.6, aim: true });
   }
   if (b.t > 2700) { pop(W / 2, 140, LEVELS[level - 1].bossName + ' se escapó... volverá', '#c9a0ff'); boss = null; shots = []; beams = []; levelDeliv = 1; }
 }
 function bossDefeated() {
   const L = LEVELS[level - 1], bx = boss.x, by = boss.y;
-  score += 500 * level; lives = Math.min(6, lives + 1);
+  score += 500 * level; lives = Math.min(8, lives + 2);
   burst(bx, by, YEL, 60); burst(bx, by, '#c9a0ff', 40); shake = 14;
-  pop(W / 2, 150, '¡' + L.bossName + ' DERROTADO! +' + 500 * level + ' y +1 vida', YEL);
+  pop(W / 2, 150, '¡' + L.bossName + ' DERROTADO! +' + 500 * level + ' y +2 vidas', YEL);
   sfx('bossDown');
   boss = null; shots = []; beams = []; items = items.filter(i => i.k === 'box' || i.k === 'fuel');
   if (level >= 5) winPend = 150; else restPend = 90;
@@ -1142,7 +1143,7 @@ function update() {
   fr++;
   if (frozen()) { if (resting && restT > 0) restT--; return; }
   const playing = state === 'play' || state === 'tut';
-  ts = state === 'tut' ? (tut.slow ? .45 : .85) : 1;
+  ts = state === 'tut' ? (tut.slow ? .6 : 1) : 1;
   const sp = playing ? speed * ts : 2.5;
   buildings.forEach(b => { b.x -= sp * (b.layer ? .5 : .25); if (b.x + b.w < 0) Object.assign(b, makeB(W + Math.random() * 40, b.layer)); });
   stars.forEach(s => { s.x -= sp * .05; if (s.x < 0) s.x = W; });
@@ -1168,20 +1169,21 @@ function update() {
   for (const k in cd) if (cd[k] > 0) cd[k]--;
 
   if (state === 'play') {
-    speed = (3.6 + Math.min(4, (t - levelT0) / 1800) + bossCount * .15) * (turboT > 0 ? 1.4 : 1);
-    energy -= WEATHER[wk].drain * .6;
-    if (energy <= 0) { energy = 50; loseLife('energy'); }
+    speed = (4.4 + Math.min(4, (t - levelT0) / 1500) + bossCount * .2) * (turboT > 0 ? 1.4 : 1);
+    energy -= WEATHER[wk].drain * .25;
+    if (energy <= 0) { energy = 60; pop(hero.x, hero.y - 40, '⚡ ¡Recarga de emergencia!', '#4be3ff'); }
+    if (lives < startLives() && t - lastHit > 1500) { lives++; lastHit = t; pop(hero.x, hero.y - 50, '♥ +1 vida', '#ff6b6b'); }
     if (urgentT > 0 && --urgentT === 0) pop(hero.x, hero.y - 40, '⏱ Urgente tarde: sin bono', '#ff8a8a');
     if (coldT > 0) { coldT -= (wk === 'sun' ? 3 : 1); if (coldT <= 0) { coldT = 0; cargo = Math.max(0, cargo - 1); pop(hero.x, hero.y - 40, '❄ Se rompió la cadena de frío', '#7fe0ff'); } }
     if (restPend > 0 && --restPend === 0) { resting = true; restT = 1200; }
     if (winPend > 0 && --winPend === 0) { state = 'win'; winPage = 0; score += 1000; finalizeRun(true); sfx('win'); return; }
     if (!boss && !bossSpawnT && !restPend && !winPend && t >= nextDec) openDecision();
-    let iv = Math.max(30, 62 - Math.floor((t - levelT0) / 800));
+    let iv = Math.max(22, 44 - Math.floor((t - levelT0) / 700));
     if (wk === 'traffic') iv = Math.round(iv * .65);
     if (perks.atajo && t - levelT0 < 3600) iv = Math.round(iv * 1.35);
     if (t % iv === 0) { if (boss || bossSpawnT) spawnKind(Math.random() < .75 ? 'box' : 'fuel'); else spawn(); }
   } else {
-    speed = 3.4; tutLive();
+    speed = 4.2; tutLive();
   }
 
   // Jefe
@@ -1189,7 +1191,7 @@ function update() {
     if (shotCool > 0) shotCool--;
     if (state === 'play' && !boss && bossSpawnT > 0 && --bossSpawnT === 0) spawnBoss();
     if (boss) bossUpdate();
-    beams.forEach(bm => { bm.t++; if (bm.t > bm.warn && bm.t <= bm.warn + bm.on && Math.abs(hero.y - bm.y) < 27) loseLife('bolt'); });
+    beams.forEach(bm => { bm.t++; if (bm.t > bm.warn && bm.t <= bm.warn + bm.on && Math.abs(hero.y - bm.y) < 21) loseLife('bolt'); });
     beams = beams.filter(bm => bm.t < bm.warn + bm.on + 4);
     shots.forEach(s => s.x += 13);
     for (const s of shots) {
@@ -1208,7 +1210,7 @@ function update() {
 
   // Zona de entrega
   const zr = 48 + (perks.contacto ? 18 : 0) - (perks.riesgo ? 12 : 0);
-  if (cargo >= 5 && !deliveryZone && !boss && !bossSpawnT && (state === 'play' || tut.zone)) deliveryZone = { x: W + 60, y: 120 + Math.random() * (H - 240), r: zr, ph: 0 };
+  if (cargo >= 3 && !deliveryZone && !boss && !bossSpawnT && (state === 'play' || tut.zone)) deliveryZone = { x: state === 'tut' ? W - 120 : W + 60, y: 120 + Math.random() * (H - 240), r: zr, ph: 0 };
   if (deliveryZone) {
     const z = deliveryZone; z.x -= speed * ts; if (rain) z.y = Math.max(100, Math.min(H - 60, z.y + Math.sin(t / 15) * 1.6));
     if (Math.hypot(z.x - hero.x, z.y - hero.y) < z.r + 10) {
@@ -1230,12 +1232,13 @@ function update() {
   for (const it of items) {
     it.x -= (speed + (it.k === 'drone' ? 1.5 : 0) + (it.extra || 0)) * ts;
     if (it.k === 'proj') it.y += (it.vy || 0) * ts;
-    if (it.aim) it.y += Math.sign(hero.y - it.y) * 1.3 * ts;
+    if (it.aim) it.y += Math.sign(hero.y - it.y) * .6 * ts;
     if (it.k === 'drone') { it.y += it.vy * ts; if (it.y < 70 || it.y > H - 40) it.vy *= -1; }
     if (it.k === 'clock') it.y += Math.sin(t / 20 + it.ph) * 1.2;
     if (it.k === 'box' || it.k === 'fuel') { if (Math.hypot(it.x - hero.x, it.y - hero.y) < mag) { it.x += (hero.x - it.x) * .06; it.y += (hero.y - it.y) * .06; } }
+    if (isHaz(it) && !it.passed && it.x < hero.x - 40) { it.passed = true; if (it.k === 'clock' || it.k === 'drone') tut.dodged++; }
     if (isHaz(it) && !it.warned && it.x < W + 300 && it.x > W) { it.warned = true; sfx('warn', it.y); }
-    if (Math.hypot(it.x - hero.x, it.y - hero.y) < it.r + hero.r - 9) {
+    if (Math.hypot(it.x - hero.x, it.y - hero.y) < it.r + hero.r - 15) {
       it.dead = true;
       if (it.k === 'box') {
         cargo++; score += 10; burst(it.x, it.y, YEL, 8);
@@ -1248,7 +1251,7 @@ function update() {
       else if (it.k === 'fuel') { score += 25; energy = Math.min(100, energy + 45); tut.fuel = true; burst(it.x, it.y, '#4be3ff', 14); pop(it.x, it.y, '+energía', '#4be3ff'); sfx('fuel'); }
       else loseLife(hazCause(it));
     }
-    if (!it.dead && (it.x < -60 || it.y < -60 || it.y > H + 60)) { it.dead = true; if (it.k === 'clock' || it.k === 'drone') tut.dodged++; if (it.k === 'box' && state === 'play') score = Math.max(0, score - 5); }
+    if (!it.dead && (it.x < -60 || it.y < -60 || it.y > H + 60)) { it.dead = true; if (it.k === 'box' && state === 'play') score = Math.max(0, score - 5); }
   }
   items = items.filter(i => !i.dead);
   parts.forEach(p => { p.x += p.vx; p.y += p.vy; p.life--; }); parts = parts.filter(p => p.life > 0);
@@ -1334,7 +1337,7 @@ function makeB(x, layer) {
 }
 function worldPalette() {
   let th = [3, 3], p = 0;
-  if (state === 'play' || state === 'over' || state === 'win') { th = LEVELS[Math.max(0, level - 1)].th; p = clamp((t - levelT0) / 4200, 0, 1); }
+  if (state === 'play' || state === 'over' || state === 'win') { th = LEVELS[Math.max(0, level - 1)].th; p = clamp((t - levelT0) / 2200, 0, 1); }
   else if (state === 'tut') th = [1, 1];
   const A = THEMES[th[0]], B = THEMES[th[1]], f = p * p * (3 - 2 * p), L = (a, b) => a + (b - a) * f;
   return { a: mix(A.a, B.a, f), b: mix(A.b, B.b, f), far: mix(A.far, B.far, f), near: mix(A.near, B.near, f), gr: mix(A.gr, B.gr, f), wc: mix(A.wc, B.wc, f), win: L(A.win, B.win), st: L(A.st, B.st), sun: L(A.sun, B.sun), moon: L(A.moon, B.moon), p };
@@ -1607,7 +1610,7 @@ function drawHUD(wk) {
   ctx.textAlign = 'left'; ctx.fillStyle = '#4be3ff'; ctx.font = 'bold 11px ' + FONT;
   ctx.fillText(state === 'tut' ? 'TUTORIAL · QAI' : 'NIVEL ' + level + '/5 · ' + LEVELS[level - 1].world.toUpperCase(), 80, 17);
   ctx.fillStyle = YEL; ctx.font = 'bold 20px ' + FONT; ctx.fillText('PUNTOS ' + Math.floor(score), 80, 38);
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText('📦 ' + cargo + '/5   🚀 ' + delivered, W / 2 + 60, 31);
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText('📦 ' + cargo + '/3   🚀 ' + delivered, W / 2 + 60, 31);
   ctx.textAlign = 'right'; ctx.fillStyle = '#ff6b6b'; ctx.fillText('♥'.repeat(Math.max(0, lives)), W - 16, 31);
   if ((state === 'play' || state === 'tut') && !frozen()) { btn('⏸', W - 196, 6, 40, 32, () => { paused = true; }); btn('🔊', W - 240, 6, 40, 32, () => { audioOpen = true; }); }
   if (state === 'play' && !frozen()) {
@@ -1643,7 +1646,7 @@ function drawBanners() {
     ctx.fillStyle = YEL; ctx.font = 'bold 15px ' + FONT; ctx.textAlign = 'center';
     ctx.fillText(isMobile ? 'Toca la pantalla = lanzar paquete (gasta 1 caja)' : 'ESPACIO / clic = lanzar paquete (gasta 1 caja)', W / 2, H - 28);
   }
-  if (state === 'play' && cargo >= 5 && deliveryZone) { ctx.fillStyle = YEL; ctx.textAlign = 'center'; ctx.font = 'bold 16px ' + FONT; ctx.fillText('¡Carga completa! Vuela al CLIENTE', W / 2, H - 28); }
+  if (state === 'play' && cargo >= 3 && deliveryZone) { ctx.fillStyle = YEL; ctx.textAlign = 'center'; ctx.font = 'bold 16px ' + FONT; ctx.fillText('¡Carga completa! Vuela al CLIENTE', W / 2, H - 28); }
 }
 function drawGame() {
   const wk = state === 'tut' ? (tut.weather || 'clear') : (state === 'play' ? curWeather() : 'clear');
@@ -1729,7 +1732,7 @@ function drawDecision() {
     ctx.fillStyle = '#fff'; ctx.font = '21px ' + FONT; let y = wrap('Resultado: ' + c.res, 80, 235, 800, 29);
     ctx.fillStyle = YEL; ctx.font = 'bold 21px ' + FONT; y = wrap('💡 ' + c.lesson, 80, y + 14, 800, 29);
     const ft = fxText(c.fx); if (ft) { ctx.fillStyle = '#4be3ff'; ctx.font = 'bold 20px ' + FONT; ctx.textAlign = 'left'; ctx.fillText(ft, 80, y + 24); }
-    btn('Continuar ▶', 700, 450, 180, 46, () => { if (fr - decision.fr > 40) closeDecision(); }, true);
+    btn('Continuar ▶', 700, 450, 180, 46, () => { if (fr - decision.fr > 18) closeDecision(); }, true);
   }
 }
 function drawLevelIntro() {
@@ -1739,7 +1742,7 @@ function drawLevelIntro() {
   ctx.fillStyle = '#fff'; ctx.font = '20px ' + FONT; wrap(L.intro, 150, 240, 660, 28);
   ctx.fillStyle = '#ff9a9a'; ctx.font = 'bold 17px ' + FONT; ctx.fillText('⚠ Evita: relojes ⏰ y ' + L.hazName, 150, 336);
   ctx.fillStyle = '#9fd', ctx.font = '16px ' + FONT; ctx.fillStyle = '#9ad8e8'; ctx.fillText('Meta: 2 entregas y luego te espera ' + L.bossName, 150, 364);
-  btn('Comenzar ▶', W / 2 - 110, 386, 220, 44, () => { if (fr - levelIntro.fr > 40) levelIntro = null; }, true);
+  btn('Comenzar ▶', W / 2 - 110, 386, 220, 44, () => { if (fr - levelIntro.fr > 18) levelIntro = null; }, true);
 }
 function drawBossIntro() {
   const type = bossIntro.type, L = LEVELS[level - 1], I = BOSSINFO[type]; dim(.7); holo(70, 60, 820, 420, { a: .86 });
@@ -1753,7 +1756,7 @@ function drawBossIntro() {
   ctx.fillStyle = '#c9a0ff'; ctx.font = 'italic 19px ' + FONT; wrap('«' + I.quip + '»', 450, 226, 410, 26);
   ctx.fillStyle = '#fff'; ctx.font = '17px ' + FONT; wrap(I.lore, 450, 282, 410, 24);
   ctx.fillStyle = YEL; ctx.font = 'bold 16px ' + FONT; wrap(I.weak, 450, 372, 410, 22);
-  btn('¡A pelear! ▶', 450, 416, 220, 44, () => { if (fr - bossIntro.fr > 40) bossIntro = null; }, true);
+  btn('¡A pelear! ▶', 450, 416, 220, 44, () => { if (fr - bossIntro.fr > 18) bossIntro = null; }, true);
 }
 function drawOver() {
   dim(.78); holo(70, 36, 820, 470, { a: .72 }); logoAt(LOGO, W / 2, 80, 190);
@@ -1832,7 +1835,7 @@ function drawTutPanel() {
   ctx.fillStyle = '#4be3ff'; ctx.font = 'bold 13px ' + FONT; ctx.textAlign = 'left'; ctx.fillText('● QAI · ASISTENTE DE QUICK', X + 24, Y + 32);
   ctx.textAlign = 'right'; ctx.fillStyle = '#7fb8c8'; ctx.fillText('PASO ' + (tut.i + 1) + ' / ' + TSTEPS.length, X + Wd - 24, Y + 32);
   ctx.fillStyle = YEL; ctx.font = 'bold 26px ' + FONT; ctx.textAlign = 'left'; ctx.fillText(s.title, X + 24, Y + 70);
-  const full = s.say(), n = Math.floor((fr - tut.t0) * 1.8);
+  const full = s.say(), n = Math.floor((fr - tut.t0) * 3.5);
   qai(X + 66, Y + 150, 32, n < full.length);
   ctx.fillStyle = '#fff'; ctx.font = '18px ' + FONT;
   const lines = wrapLines(full, Wd - 170); let left = n;
