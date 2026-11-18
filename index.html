@@ -1078,7 +1078,7 @@ function speak(text, o = {}) {
   } catch (e) {}
 }
 function stopSpeak() { try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) {} vStopAll(); }
-// ---------- Voces grabadas de QAI: se mezclan y se sobreponen entre sí ----------
+// ---------- Voces grabadas de QAI: suena una sola a la vez ----------
 const VCACHE = {}, vLive = [];
 const JEF_CODE = { retraso: 'JEF-01', trancon: 'JEF-02', brujula: 'JEF-03', fantasma: 'JEF-04', apagon: 'JEF-05' };
 const TUT_CODE = { hello: 'TUT-01', ctrl: 'TUT-02', move: 'TUT-03', boxes: 'TUT-04', clock: 'TUT-05', energy: 'TUT-06', z: 'TUT-07', x: 'TUT-08', c: 'TUT-09', throw: 'TUT-10', deliver: 'TUT-11', sun: 'TUT-12', rain: 'TUT-13', traffic: 'TUT-14', end: 'TUT-15' };
@@ -1095,18 +1095,21 @@ function vPreload() {
   Object.keys(JEF_CODE).forEach(k => list.push(['r', JEF_CODE[k]]));
   (function next() { const x = list.shift(); if (!x) return; vDecode(x[0], x[1]); setTimeout(next, 40); })();
 }
-function vFade(o) { try { const n = actx.currentTime; o.g.gain.setTargetAtTime(0, n, .05); o.src.stop(n + .25); } catch (e) {} }
+function vFade(o) { try { const n = actx.currentTime; o.fading = true; o.g.gain.cancelScheduledValues(n); o.g.gain.setTargetAtTime(0, n, .012); o.src.stop(n + .07); } catch (e) {} }
 function vStopAll() { vLive.slice().forEach(vFade); }
+let vTok = 0;
 function vplay(code, text, o = {}) {
+  const my = ++vTok; stopSpeak();   // una sola voz a la vez: la nueva corta la anterior
   if (AUD.mute || AUD.v <= 0) return;
   const set = o.set || (AUD.vs === 'h' ? 'h' : 'r'), p = vDecode(set, code);
   if (!p) { speak(text, o); return; }
   p.then(buf => {
+    if (my !== vTok) return;
     if (!buf) { speak(text, o); return; }
-    if (AUD.mute || AUD.v <= 0 || !actx) return;
+    if (my !== vTok || AUD.mute || AUD.v <= 0 || !actx) return;
+    vStopAll();
     const src = actx.createBufferSource(), g = actx.createGain(), obj = { src, g }; src.buffer = buf; src.connect(g); g.connect(voiceBus);
     vLive.push(obj); src.onended = () => { const i = vLive.indexOf(obj); if (i >= 0) vLive.splice(i, 1); };
-    while (vLive.filter(x => !x.fading).length > 4) { const old = vLive.find(x => !x.fading); old.fading = true; vFade(old); }
     src.start();
   });
 }
