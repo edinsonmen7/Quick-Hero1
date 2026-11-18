@@ -912,8 +912,23 @@ function applyVol() {
 }
 ['pointerdown', 'keydown', 'touchstart', 'touchend', 'click'].forEach(ev => addEventListener(ev, audioInit, { passive: true }));
 // iOS Safari: el audio solo se libera dentro de un gesto (touchend/click) y se suspende al salir o recibir una llamada
-function iosUnlock() { if (!actx) return; try { if (actx.state !== 'running') actx.resume(); const b = actx.createBuffer(1, 1, 22050), s = actx.createBufferSource(); s.buffer = b; s.connect(actx.destination); s.start(0); } catch (e) {} }
-['touchend', 'click', 'pointerup'].forEach(ev => addEventListener(ev, iosUnlock, { passive: true }));
+// iOS: categoría de audio "playback" (suena aunque el interruptor lateral esté en silencio) + <audio> mudo en bucle + resume dentro del gesto
+try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+let silentEl = null;
+function silentWavURI() {
+  const n = 800, b = new Uint8Array(44 + n), v = new DataView(b.buffer), w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) b[44 + i] = 128;
+  let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return 'data:audio/wav;base64,' + btoa(s);
+}
+function iosUnlock() {
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) {}
+  try { if (!silentEl) { silentEl = document.createElement('audio'); silentEl.src = silentWavURI(); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); silentEl.volume = .01; } if (silentEl.paused) { const p = silentEl.play(); if (p && p.catch) p.catch(() => {}); } } catch (e) {}
+  if (!actx) return;
+  try { if (actx.state !== 'running') actx.resume(); const b = actx.createBuffer(1, 1, 22050), s = actx.createBufferSource(); s.buffer = b; s.connect(actx.destination); s.start(0); } catch (e) {}
+}
+function iosUnlockOld() { if (!actx) return; try { if (actx.state !== 'running') actx.resume(); const b = actx.createBuffer(1, 1, 22050), s = actx.createBufferSource(); s.buffer = b; s.connect(actx.destination); s.start(0); } catch (e) {} }
+['touchend', 'click', 'pointerup', 'touchstart'].forEach(ev => addEventListener(ev, iosUnlock, { passive: true, capture: true }));
 document.addEventListener('visibilitychange', () => { if (!document.hidden && actx && actx.state !== 'running') { try { actx.resume(); } catch (e) {} } });
 document.addEventListener('visibilitychange', () => { if (!actx) return; if (document.hidden) actx.suspend(); else actx.resume(); });
 
